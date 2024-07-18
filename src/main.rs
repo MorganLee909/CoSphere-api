@@ -1,8 +1,8 @@
 pub mod routes;
+pub mod models;
 
 use actix_web::{web, App, HttpServer};
 use mongodb::Client;
-use crate::routes::user;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -13,7 +13,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(client.clone()))
-            .service(web::scope("/api").configure(user::config))
+            .service(web::scope("/api").configure(routes::user::config))
     })
     .bind(("127.0.0.1", 8000))?
     .run()

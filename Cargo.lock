@@ -9,6 +9,7 @@ dependencies = [
  "actix-web",
  "chrono",
  "mongodb",
+ "regex",
  "serde",
 ]
 

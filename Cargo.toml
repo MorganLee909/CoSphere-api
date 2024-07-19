@@ -9,4 +9,5 @@ edition = "2021"
 actix-web = "4.8.0"
 chrono = { version = "0.4.38", features = ["serde"] }
 mongodb = "3.0.1"
+regex = "1.10.5"
 serde = { version = "1.0.204", features = ["derive"] }

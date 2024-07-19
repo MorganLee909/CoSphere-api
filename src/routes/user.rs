@@ -1,14 +1,22 @@
 use crate::models::{user::User};
-use actix_web::{web, Responder};
+use actix_web::{web, HttpResponse};
 use chrono::Utc;
-use mongodb::Client;
-use serde::Deserialize;
+use mongodb::{Client, Collection};
+use serde::{Deserialize, Serialize};
+use regex::Regex;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::resource("/user")
             .route(web::post().to(create))
     );
+}
+
+#[derive(Serialize)]
+struct ErrorMessage {
+    error: bool,
+    code: i16,
+    message: String
 }
 
 #[derive(Deserialize)]
@@ -20,7 +28,15 @@ struct CreateBody {
     last_name: String
 }
 
-async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> impl Responder {
+async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpResponse {
+    if body.password != body.confirm_password {
+        return HttpResponse::BadRequest().json(ErrorMessage {
+            error: true,
+            code: 400,
+            message: String::from("Passwords do not match")
+        });
+    }
+
     let new_user = User {
         email: body.email.clone(),
         password: body.password.clone(),
@@ -35,10 +51,10 @@ async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> impl 
         session_id: String::from("12345")
     };
 
-    let collection = client.database("cosphere").collection("users");
-    let result = collection.insert_one(new_user).await;
+    let collection:Collection<User> = client.database("cosphere").collection("users");
+    let result = collection.insert_one(&new_user).await;
     match result {
-        Ok(_) => "New user created",
-        Err(err) => "Error: user probably not created"
+        Ok(_) => HttpResponse::Ok().json(new_user),
+        Err(err) => HttpResponse::InternalServerError().body(err.to_string())
     }
 }

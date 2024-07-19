@@ -5,7 +5,13 @@ meta {
 }
 
 get {
-  url: localhost:8000/api/user
-  body: none
+  url: http://localhost:8000/api/user
+  body: json
   auth: none
+}
+
+body:json {
+  {
+    "something": "nothing"
+  }
 }

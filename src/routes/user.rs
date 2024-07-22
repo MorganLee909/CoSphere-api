@@ -2,7 +2,7 @@ use crate::models::{user::User};
 use crate::controllers::user as controller;
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
-use mongodb::{Client, Collection};
+use mongodb::{bson::doc, Client, Collection};
 use serde::Deserialize;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
@@ -23,6 +23,8 @@ struct CreateBody {
 
 async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpResponse {
     let email: String = body.email.to_lowercase();
+    let user_collection: Collection<User> = client.database("cosphere").collection("users");
+
     if body.password != body.confirm_password {
         return controller::create_error(400, "Passwords do not match");
     }
@@ -31,8 +33,18 @@ async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpR
         return controller::create_error(400, "Invalid email");
     }
 
+    if body.password.chars().count() < 10 {
+        return controller::create_error(400, "Password must contain at least 10 characters");
+    }
+
+    match user_collection.find_one(doc! { "email": &email }).await {
+        Ok(Some(existing_user)) => return controller::create_error(400, "User with this email already exists"),
+        Ok(None) => (),
+        Err(err) => return controller::create_error(500, "Internal server error")
+    }
+
     let new_user = User {
-        email: body.email.clone(),
+        email: email,
         password: body.password.clone(),
         first_name: body.first_name.clone(),
         last_name: body.last_name.clone(),
@@ -45,8 +57,7 @@ async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpR
         session_id: String::from("12345")
     };
 
-    let collection:Collection<User> = client.database("cosphere").collection("users");
-    let result = collection.insert_one(&new_user).await;
+    let result = user_collection.insert_one(&new_user).await;
     match result {
         Ok(_) => HttpResponse::Ok().json(new_user),
         Err(err) => HttpResponse::InternalServerError().body(err.to_string())

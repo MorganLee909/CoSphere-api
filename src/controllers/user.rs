@@ -16,7 +16,13 @@ pub fn email_valid(email: &String) -> bool {
 }
 
 pub fn create_error(code: i16, message: &str) -> HttpResponse {
-    HttpResponse::BadRequest().json(ErrorMessage {
+    let mut request = match code {
+        400 => HttpResponse::BadRequest(),
+        500 => HttpResponse::InternalServerError(),
+        _ => HttpResponse::InternalServerError()
+    };
+
+    request.json(ErrorMessage {
         error: true,
         code: code,
         message: message

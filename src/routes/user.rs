@@ -1,22 +1,15 @@
 use crate::models::{user::User};
+use crate::controllers::user as controller;
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
 use mongodb::{Client, Collection};
-use serde::{Deserialize, Serialize};
-use regex::Regex;
+use serde::Deserialize;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::resource("/user")
             .route(web::post().to(create))
     );
-}
-
-#[derive(Serialize)]
-struct ErrorMessage {
-    error: bool,
-    code: i16,
-    message: String
 }
 
 #[derive(Deserialize)]
@@ -29,12 +22,13 @@ struct CreateBody {
 }
 
 async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpResponse {
+    let email: String = body.email.to_lowercase();
     if body.password != body.confirm_password {
-        return HttpResponse::BadRequest().json(ErrorMessage {
-            error: true,
-            code: 400,
-            message: String::from("Passwords do not match")
-        });
+        return controller::create_error(400, "Passwords do not match");
+    }
+
+    if !controller::email_valid(&email) {
+        return controller::create_error(400, "Invalid email");
     }
 
     let new_user = User {

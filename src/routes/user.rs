@@ -50,9 +50,6 @@ async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpR
         body.last_name.clone(),
     );
 
-    let result = user_collection.insert_one(&new_user).await;
-    match result {
-        Ok(_) => HttpResponse::Ok().json(new_user),
-        Err(err) => HttpResponse::InternalServerError().body(err.to_string())
-    }
+    new_user.save(&client).await;
+    HttpResponse::Ok().json(new_user)
 }

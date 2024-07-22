@@ -1,5 +1,6 @@
 use chrono::prelude::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use mongodb::{bson::doc, Client, Collection};
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
@@ -38,6 +39,11 @@ impl User {
             default_location: String::from("Myrtle Beach"),
             session_id: String::from("12345")
         }
+    }
+
+    pub async fn save(&self, client: &Client) {
+        let user_collection: Collection<User> = client.database("cosphere").collection("users");
+        user_collection.insert_one(self).await;
     }
 }
 

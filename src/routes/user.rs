@@ -1,7 +1,6 @@
 use crate::models::{user::User};
 use crate::controllers::user as controller;
 use actix_web::{web, HttpResponse};
-use chrono::Utc;
 use mongodb::{bson::doc, Client, Collection};
 use serde::Deserialize;
 
@@ -43,19 +42,13 @@ async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpR
         Err(err) => return controller::create_error(500, "Internal server error")
     }
 
-    let new_user = User {
-        email: email,
-        password: body.password.clone(),
-        first_name: body.first_name.clone(),
-        last_name: body.last_name.clone(),
-        status: String::from("active"),
-        expiration: Utc::now(),
-        created_date: Utc::now(),
-        reset_code: None,
-        avatar: None,
-        default_location: String::from("Myrtle Beach"),
-        session_id: String::from("12345")
-    };
+    let new_user = User::new(
+        body.email.clone(),
+        body.password.clone(),
+        body.confirm_password.clone(),
+        body.first_name.clone(),
+        body.last_name.clone(),
+    );
 
     let result = user_collection.insert_one(&new_user).await;
     match result {

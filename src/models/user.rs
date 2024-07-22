@@ -3,18 +3,42 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
-    pub email: String,
-    pub password: String,
-    pub first_name: String,
-    pub last_name: String,
-    pub status: String,
-    pub expiration: DateTime<Utc>,
-    pub created_date: DateTime<Utc>,
+    email: String,
+    password: String,
+    first_name: String,
+    last_name: String,
+    status: String,
+    expiration: DateTime<Utc>,
+    created_date: DateTime<Utc>,
     //pub stripe: StripeData,
-    pub reset_code: Option<String>,
-    pub avatar: Option<String>,
-    pub default_location: String,
-    pub session_id: String
+    reset_code: Option<String>,
+    avatar: Option<String>,
+    default_location: String,
+    session_id: String
+}
+
+impl User {
+    pub fn new(
+        email: String,
+        password: String,
+        confirm_password: String,
+        first_name: String,
+        last_name: String
+    ) -> Self {
+        Self {
+            email: email,
+            password: password,
+            first_name: first_name,
+            last_name: last_name,
+            status: String::from("active"),
+            expiration: Utc::now(),
+            created_date: Utc::now(),
+            reset_code: None,
+            avatar: None,
+            default_location: String::from("Myrtle Beach"),
+            session_id: String::from("12345")
+        }
+    }
 }
 
 struct StripeData {

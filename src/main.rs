@@ -1,6 +1,6 @@
 mod routes;
 pub mod models;
-pub mod controllers;
+pub mod errors;
 
 use actix_web::{web, App, HttpServer};
 use mongodb::Client;

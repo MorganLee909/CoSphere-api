@@ -1,6 +1,7 @@
 use chrono::prelude::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use regex::Regex;
+use argon2::{Argon2, PasswordHasher, password_hash::{rand_core::OsRng, Salt, SaltString}};
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
@@ -26,7 +27,7 @@ impl User {
         first_name: String,
         last_name: String
     ) -> Result<User, (i16, String)>{
-        let user = Self {
+        let mut user = Self {
             email: email.to_lowercase(),
             password: password,
             first_name: first_name,
@@ -52,6 +53,8 @@ impl User {
             return Err((400, String::from("Invalid email")));
         }
 
+        user.password = user.hashed_password();
+
         Ok(user)
     }
 
@@ -66,6 +69,14 @@ impl User {
     fn email_valid(&self) -> bool {
         let regex = Regex::new(r"^([a-z0-9_+]([a-z0-9_+.]*[a-z0-9_+])?)@([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6})").unwrap();
         regex.is_match(&self.email)
+    }
+
+    fn hashed_password(&self) -> String {
+        let salt_str = SaltString::generate(&mut OsRng);
+        let salt = salt_str.as_salt();
+
+        let argon2 = Argon2::default();
+        argon2.hash_password(self.password.as_bytes(), salt).unwrap().to_string()
     }
 }
 

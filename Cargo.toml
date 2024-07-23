@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 actix-web = "4.8.0"
+argon2 = "0.5.3"
 chrono = { version = "0.4.38", features = ["serde"] }
 mongodb = "3.0.1"
 regex = "1.10.5"

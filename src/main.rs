@@ -5,7 +5,6 @@ pub mod controllers;
 use actix_web::{web, App, HttpServer};
 use mongodb::Client;
 
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let uri = std::env::var("MONGODB_URI").unwrap_or_else(|_| "mongodb://localhost:27017".into());

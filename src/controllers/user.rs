@@ -3,10 +3,10 @@ use serde::{Serialize};
 use regex::Regex;
 
 #[derive(Serialize)]
-struct ErrorMessage<'a> {
+struct ErrorMessage {
     error: bool,
     code: i16,
-    message: &'a str
+    message: String
 }
 
 pub fn email_valid(email: &String) -> bool {
@@ -15,7 +15,7 @@ pub fn email_valid(email: &String) -> bool {
     regex.is_match(email)
 }
 
-pub fn create_error(code: i16, message: &str) -> HttpResponse {
+pub fn create_error(code: i16, message: String) -> HttpResponse {
     let mut request = match code {
         400 => HttpResponse::BadRequest(),
         500 => HttpResponse::InternalServerError(),

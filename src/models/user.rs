@@ -1,10 +1,10 @@
 use chrono::prelude::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use mongodb::{bson::doc, Client, Collection};
+use regex::Regex;
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
-    email: String,
+    pub email: String,
     password: String,
     first_name: String,
     last_name: String,
@@ -25,9 +25,9 @@ impl User {
         confirm_password: String,
         first_name: String,
         last_name: String
-    ) -> Self {
-        Self {
-            email: email,
+    ) -> Result<User, (i16, String)>{
+        let user = Self {
+            email: email.to_lowercase(),
             password: password,
             first_name: first_name,
             last_name: last_name,
@@ -36,14 +36,36 @@ impl User {
             created_date: Utc::now(),
             reset_code: None,
             avatar: None,
-            default_location: String::from("Myrtle Beach"),
+            default_location: String::from("Some Place"),
             session_id: String::from("12345")
+        };
+
+        if !user.passwords_match(confirm_password) {
+           return Err((400, String::from("Passwords do not match")));
         }
+
+        if !user.password_valid_length() {
+            return Err((400, String::from("Password must contain at least 10 characaters")));
+        }
+
+        if !user.email_valid() {
+            return Err((400, String::from("Invalid email")));
+        }
+
+        Ok(user)
     }
 
-    pub async fn save(&self, client: &Client) {
-        let user_collection: Collection<User> = client.database("cosphere").collection("users");
-        user_collection.insert_one(self).await;
+    fn passwords_match(&self, password: String) -> bool {
+        self.password == password
+    }
+
+    fn password_valid_length(&self) -> bool {
+        self.password.chars().count() >= 10
+    }
+
+    fn email_valid(&self) -> bool {
+        let regex = Regex::new(r"^([a-z0-9_+]([a-z0-9_+.]*[a-z0-9_+])?)@([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6})").unwrap();
+        regex.is_match(&self.email)
     }
 }
 

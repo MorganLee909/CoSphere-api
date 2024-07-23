@@ -21,35 +21,30 @@ struct CreateBody {
 }
 
 async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpResponse {
-    let email: String = body.email.to_lowercase();
     let user_collection: Collection<User> = client.database("cosphere").collection("users");
 
-    if body.password != body.confirm_password {
-        return controller::create_error(400, "Passwords do not match");
-    }
 
-    if !controller::email_valid(&email) {
-        return controller::create_error(400, "Invalid email");
-    }
-
-    if body.password.chars().count() < 10 {
-        return controller::create_error(400, "Password must contain at least 10 characters");
-    }
-
-    match user_collection.find_one(doc! { "email": &email }).await {
-        Ok(Some(existing_user)) => return controller::create_error(400, "User with this email already exists"),
-        Ok(None) => (),
-        Err(err) => return controller::create_error(500, "Internal server error")
-    }
-
-    let new_user = User::new(
+    let user = match User::new(
         body.email.clone(),
         body.password.clone(),
         body.confirm_password.clone(),
         body.first_name.clone(),
         body.last_name.clone(),
-    );
+    ){
+        Ok(user) => user,
+        Err(err) => return controller::create_error(err.0, err.1)
+    };
 
-    new_user.save(&client).await;
-    HttpResponse::Ok().json(new_user)
+    
+    match user_collection.find_one(doc! { "email": &user.email }).await {
+        Ok(Some(_)) => return controller::create_error(400, String::from("User with this email already exists")),
+        Ok(None) => (),
+        Err(_) => return controller::create_error(500, String::from("Internal server error"))
+    }
+
+    let collection: Collection<User> = client.database("cosphere").collection("users");
+    match collection.insert_one(&user).await {
+        Ok(_) => HttpResponse::Ok().json(user),
+        Err(_) => controller::create_error(500, String::from("Internal server error"))
+    }
 }

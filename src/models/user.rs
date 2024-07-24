@@ -1,7 +1,8 @@
 use chrono::prelude::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use regex::Regex;
-use argon2::{Argon2, PasswordHasher, password_hash::{rand_core::OsRng, Salt, SaltString}};
+use argon2::{Argon2, PasswordHasher, password_hash::{rand_core::OsRng, SaltString}};
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
@@ -12,7 +13,7 @@ pub struct User {
     status: String,
     expiration: DateTime<Utc>,
     created_date: DateTime<Utc>,
-    //pub stripe: StripeData,
+    stripe: Option<StripeData>,
     reset_code: Option<String>,
     avatar: Option<String>,
     default_location: String,
@@ -20,7 +21,7 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(
+    pub async fn new(
         email: String,
         password: String,
         confirm_password: String,
@@ -35,6 +36,7 @@ impl User {
             status: String::from("active"),
             expiration: Utc::now(),
             created_date: Utc::now(),
+            stripe: None,
             reset_code: None,
             avatar: None,
             default_location: String::from("Some Place"),
@@ -54,6 +56,7 @@ impl User {
         }
 
         user.password = user.hashed_password();
+        //user.stripe = Some(user.create_stripe_data().await);
 
         Ok(user)
     }
@@ -78,12 +81,35 @@ impl User {
         let argon2 = Argon2::default();
         argon2.hash_password(self.password.as_bytes(), salt).unwrap().to_string()
     }
+
+    async fn create_stripe_data(&self) -> StripeData {
+        let stripe_key = std::env::var("COSPHERE_STRIPE_KEY").unwrap();
+        let customer: Value = reqwest::Client::new()
+            .post("https://api.stripe.com/v1/customers")
+            .header("Authorization", format!("Basic {}", stripe_key))
+            .body(format!("{{email: {}}}", self.email))
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+
+        StripeData {
+            customer_id: String::from("Some id"),
+            product_id: None,
+            subscription_id: None,
+            subscription_status: None,
+            subscription_type: None
+        }
+    }
 }
 
+#[derive(Deserialize, Serialize)]
 struct StripeData {
     customer_id: String,
     product_id: Option<String>,
     subscription_id: Option<String>,
     subscription_status: Option<String>,
-    subscription_type: String
+    subscription_type: Option<String>
 }

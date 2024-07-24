@@ -29,7 +29,7 @@ async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpR
         body.confirm_password.clone(),
         body.first_name.clone(),
         body.last_name.clone(),
-    ){
+    ).await{
         Ok(user) => user,
         Err(err) => return http_error(err.0, err.1)
     };

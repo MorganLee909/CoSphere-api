@@ -9,6 +9,10 @@ pub fn config(cfg: &mut web::ServiceConfig) {
         web::resource("/user")
             .route(web::post().to(create))
     );
+    cfg.service(
+        web::resource("/user/login")
+            .route(web::post().to(login))
+    );
 }
 
 #[derive(Deserialize)]
@@ -34,7 +38,6 @@ async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpR
         Err(err) => return http_error(err.0, err.1)
     };
 
-    
     match user_collection.find_one(doc! { "email": &user.email }).await {
         Ok(Some(_)) => return http_error(400, String::from("User with this email already exists")),
         Ok(None) => (),
@@ -45,5 +48,26 @@ async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpR
     match collection.insert_one(&user).await {
         Ok(_) => HttpResponse::Ok().json(user),
         Err(_) => http_error(500, String::from("Internal server error"))
+    }
+}
+
+#[derive(Deserialize)]
+struct LoginBody {
+    email: String,
+    password: String
+}
+
+async fn login(client: web::Data<Client>, body: web::Json<LoginBody>) -> HttpResponse {
+    let user_collection: Collection<User> = client.database("cosphere").collection("users");
+
+    let user = match user_collection.find_one(doc! { "email": &body.email }).await {
+        Ok(Some(u)) => u,
+        Ok(None) => return http_error(401, String::from("No user with this email address")),
+        Err(_) => return http_error(500, String::from("Internal server error"))
+    };
+
+    match user.valid_password(body.password.clone()) {
+        true => HttpResponse::Ok().json(user),
+        false => http_error(401, String::from("Invalid password"))
     }
 }

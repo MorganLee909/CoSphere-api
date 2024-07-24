@@ -2,7 +2,9 @@ use chrono::prelude::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use regex::Regex;
-use argon2::{Argon2, PasswordHasher, password_hash::{rand_core::OsRng, SaltString}};
+use argon2::{Argon2, PasswordHasher, PasswordHash, PasswordVerifier,
+    password_hash::{rand_core::OsRng, SaltString}
+};
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
@@ -102,6 +104,11 @@ impl User {
             subscription_status: None,
             subscription_type: None
         }
+    }
+
+    pub fn valid_password(&self, password: String) -> bool {
+        let parsed_hash = PasswordHash::new(&self.password).unwrap();
+        Argon2::default().verify_password(&password.into_bytes(), &parsed_hash).is_ok()
     }
 }
 

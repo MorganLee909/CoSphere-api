@@ -129,7 +129,7 @@ impl User {
 
     pub fn create_token(&self) -> String {
         let claims = TokenClaims {
-            id: self.session_id.clone(),
+            id: self._id.to_string(),
             email: self.email.clone(),
             session: self.session_id.clone()
         };

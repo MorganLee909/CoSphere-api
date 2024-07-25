@@ -71,7 +71,7 @@ async fn login(client: web::Data<Client>, body: web::Json<LoginBody>) -> HttpRes
         false => return http_error(401, String::from("Invalid password"))
     };
 
-    //let token = user.create_token();
+    let token = user.create_token();
 
-    HttpResponse::Ok().json(user)
+    HttpResponse::Ok().json(token)
 }

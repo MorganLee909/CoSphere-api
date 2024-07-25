@@ -5,9 +5,12 @@ use regex::Regex;
 use argon2::{Argon2, PasswordHasher, PasswordHash, PasswordVerifier,
     password_hash::{rand_core::OsRng, SaltString}
 };
+use jsonwebtoken::{encode, Header, EncodingKey};
+use bson::oid::ObjectId;
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
+    _id: ObjectId,
     pub email: String,
     password: String,
     first_name: String,
@@ -22,6 +25,18 @@ pub struct User {
     session_id: String
 }
 
+#[derive(Serialize)]
+pub struct ResponseUser{
+    _id: String,
+    email: String,
+    first_name: String,
+    last_name: String,
+    status: String,
+    reset_code: String,
+    avatar: String,
+    default_location: String
+}
+
 impl User {
     pub async fn new(
         email: String,
@@ -31,6 +46,7 @@ impl User {
         last_name: String
     ) -> Result<User, (i16, String)>{
         let mut user = Self {
+            _id: ObjectId::new(),
             email: email.to_lowercase(),
             password: password,
             first_name: first_name,
@@ -110,6 +126,42 @@ impl User {
         let parsed_hash = PasswordHash::new(&self.password).unwrap();
         Argon2::default().verify_password(&password.into_bytes(), &parsed_hash).is_ok()
     }
+
+    pub fn create_token(&self) -> String {
+        let claims = TokenClaims {
+            id: self.session_id.clone(),
+            email: self.email.clone(),
+            session: self.session_id.clone()
+        };
+
+        encode(&Header::default(), &claims, &EncodingKey::from_secret("secret".as_ref())).unwrap()
+    }
+
+    pub fn response_user(&self) -> ResponseUser {
+        ResponseUser {
+            _id: self._id.to_string(),
+            email: self.email.clone(),
+            first_name: self.first_name.clone(),
+            last_name: self.last_name.clone(),
+            status: self.status.clone(),
+            reset_code: match self.reset_code.clone() {
+                Some(a) => a,
+                None => String::from("")
+            },
+            avatar: match self.avatar.clone() {
+                Some(a) => a,
+                None => String::from("")
+            },
+            default_location: self.default_location.clone()
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct TokenClaims {
+    id: String,
+    email: String,
+    session: String
 }
 
 #[derive(Deserialize, Serialize)]

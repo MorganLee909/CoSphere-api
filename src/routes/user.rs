@@ -42,11 +42,11 @@ async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpR
         Ok(Some(_)) => return http_error(400, String::from("User with this email already exists")),
         Ok(None) => (),
         Err(_) => return http_error(500, String::from("Internal server error"))
-    }
+    };
 
     let collection: Collection<User> = client.database("cosphere").collection("users");
     match collection.insert_one(&user).await {
-        Ok(_) => HttpResponse::Ok().json(user),
+        Ok(_) => HttpResponse::Ok().json(user.response_user()),
         Err(_) => http_error(500, String::from("Internal server error"))
     }
 }
@@ -63,11 +63,15 @@ async fn login(client: web::Data<Client>, body: web::Json<LoginBody>) -> HttpRes
     let user = match user_collection.find_one(doc! { "email": &body.email }).await {
         Ok(Some(u)) => u,
         Ok(None) => return http_error(401, String::from("No user with this email address")),
-        Err(_) => return http_error(500, String::from("Internal server error"))
+        Err(e) => return http_error(500, e.to_string())
     };
 
     match user.valid_password(body.password.clone()) {
-        true => HttpResponse::Ok().json(user),
-        false => http_error(401, String::from("Invalid password"))
-    }
+        true => (),
+        false => return http_error(401, String::from("Invalid password"))
+    };
+
+    //let token = user.create_token();
+
+    HttpResponse::Ok().json(user)
 }

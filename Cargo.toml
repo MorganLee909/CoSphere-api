@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 actix-web = "4.8.0"
 argon2 = { version = "0.5.3", features = ["password-hash"] }
+bson = "2.11.0"
 chrono = { version = "0.4.38", features = ["serde"] }
 jsonwebtoken = "9.3.0"
 mongodb = "3.0.1"

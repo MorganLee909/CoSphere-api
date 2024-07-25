@@ -1,11 +1,11 @@
-use chrono::prelude::{DateTime, Utc};
+use chrono::{Months, prelude::{DateTime, Utc}};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use regex::Regex;
 use argon2::{Argon2, PasswordHasher, PasswordHash, PasswordVerifier,
     password_hash::{rand_core::OsRng, SaltString}
 };
-use jsonwebtoken::{encode, Header, EncodingKey};
+use jsonwebtoken::{encode, decode, Header, EncodingKey, DecodingKey, Validation, Algorithm};
 use bson::oid::ObjectId;
 
 #[derive(Deserialize, Serialize)]
@@ -128,10 +128,14 @@ impl User {
     }
 
     pub fn create_token(&self) -> String {
+        let mut expiration = Utc::now();
+        expiration = expiration.checked_add_months(Months::new(12)).unwrap();
+
         let claims = TokenClaims {
             id: self._id.to_string(),
             email: self.email.clone(),
-            session: self.session_id.clone()
+            session: self.session_id.clone(),
+            exp: expiration.timestamp()
         };
 
         encode(&Header::default(), &claims, &EncodingKey::from_secret("secret".as_ref())).unwrap()
@@ -155,13 +159,33 @@ impl User {
             default_location: self.default_location.clone()
         }
     }
+
+    pub fn authorized(&self, token: &str) -> bool {
+        let response = decode::<TokenClaims>(
+            token,
+            &DecodingKey::from_secret("secret".as_ref()),
+            &Validation::new(Algorithm::HS256)
+        );
+
+        let token_data = match response {
+            Ok(d) => d,
+            Err(e) => return false
+        };
+
+        if token_data.claims.email != self.email || token_data.claims.id != self._id.to_string() {
+            return false;
+        }
+
+        true
+    }
 }
 
 #[derive(Serialize, Deserialize)]
 struct TokenClaims {
     id: String,
     email: String,
-    session: String
+    session: String,
+    exp: i64
 }
 
 #[derive(Deserialize, Serialize)]

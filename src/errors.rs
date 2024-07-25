@@ -12,6 +12,7 @@ pub fn http_error(code: i16, message: String) -> HttpResponse {
     let mut request = match code {
         400 => HttpResponse::BadRequest(),
         401 => HttpResponse::Unauthorized(),
+        404 => HttpResponse::NotFound(),
         500 => HttpResponse::InternalServerError(),
         _ => HttpResponse::InternalServerError()
     };

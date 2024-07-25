@@ -1,18 +1,50 @@
 use crate::models::{user::User};
 use crate::errors::http_error;
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpResponse, HttpRequest};
 use mongodb::{bson::doc, Client, Collection};
 use serde::Deserialize;
+use bson::oid::ObjectId;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::resource("/user")
-            .route(web::post().to(create))
-    );
     cfg.service(
         web::resource("/user/login")
             .route(web::post().to(login))
     );
+    cfg.service(
+        web::resource("/user/{user_id}")
+            .route(web::get().to(retrieve))
+    );
+    cfg.service(
+        web::resource("/user")
+            .route(web::post().to(create))
+    );
+}
+
+async fn retrieve(
+        client: web::Data<Client>,
+        user_id: web::Path<String>,
+        req: HttpRequest
+    ) -> HttpResponse {
+    let user_collection: Collection<User> = client.database("cosphere").collection("users");
+
+    let id = ObjectId::parse_str(user_id.to_string()).unwrap();
+    let user = match user_collection.find_one(doc! { "_id": id }).await {
+        Ok(Some(u)) => u,
+        Ok(None) => return http_error(404, String::from("User with this ID doesn't exist")),
+        Err(_) => return http_error(500, String::from("Internal server error"))
+    };
+
+
+    let headers = match req.headers().get("Authorization") {
+        Some(h) => h.to_str().unwrap(),
+        None => return http_error(401, String::from("Unauthorized"))
+    };
+    let parts = headers.split(" ").collect::<Vec<&str>>();
+
+    match user.authorized(parts[1]) {
+        true => HttpResponse::Ok().json(user),
+        false => http_error(401, String::from("Unauthorized"))
+    }
 }
 
 #[derive(Deserialize)]

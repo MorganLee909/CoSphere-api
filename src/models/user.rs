@@ -7,6 +7,7 @@ use argon2::{Argon2, PasswordHasher, PasswordHash, PasswordVerifier,
 };
 use jsonwebtoken::{encode, decode, Header, EncodingKey, DecodingKey, Validation, Algorithm};
 use bson::oid::ObjectId;
+use std::collections::HashMap;
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
@@ -18,7 +19,7 @@ pub struct User {
     status: String,
     expiration: DateTime<Utc>,
     created_date: DateTime<Utc>,
-    stripe: Option<StripeData>,
+    pub stripe: Option<StripeData>,
     reset_code: Option<String>,
     avatar: Option<String>,
     default_location: String,
@@ -100,21 +101,27 @@ impl User {
         argon2.hash_password(self.password.as_bytes(), salt).unwrap().to_string()
     }
 
-    async fn create_stripe_data(&self) -> StripeData {
+    pub async fn create_stripe_data(&self) -> StripeData {
         let stripe_key = std::env::var("COSPHERE_STRIPE_KEY").unwrap();
+        let mut params = HashMap::new();
+        params.insert("email", &self.email);
+
         let customer: Value = reqwest::Client::new()
             .post("https://api.stripe.com/v1/customers")
-            .header("Authorization", format!("Basic {}", stripe_key))
-            .body(format!("{{email: {}}}", self.email))
+            .header("Authorization", format!("Bearer {}", stripe_key))
+            .form(&params)
             .send()
             .await
-            .unwrap()
-            .json()
+            .expect("failed to get response")
+            .json::<Value>()
             .await
             .unwrap();
 
         StripeData {
-            customer_id: String::from("Some id"),
+            customer_id: match customer.get("id") {
+                Some(a) => a.to_string(),
+                None => String::from("None")
+            },
             product_id: None,
             subscription_id: None,
             subscription_status: None,
@@ -189,7 +196,7 @@ struct TokenClaims {
 }
 
 #[derive(Deserialize, Serialize)]
-struct StripeData {
+pub struct StripeData {
     customer_id: String,
     product_id: Option<String>,
     subscription_id: Option<String>,

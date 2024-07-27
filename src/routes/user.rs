@@ -34,7 +34,6 @@ async fn retrieve(
         Err(_) => return http_error(500, String::from("Internal server error"))
     };
 
-
     let headers = match req.headers().get("Authorization") {
         Some(h) => h.to_str().unwrap(),
         None => return http_error(401, String::from("Unauthorized"))
@@ -59,7 +58,7 @@ struct CreateBody {
 async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpResponse {
     let user_collection: Collection<User> = client.database("cosphere").collection("users");
 
-    let user = match User::new(
+    let mut user = match User::new(
         body.email.clone(),
         body.password.clone(),
         body.confirm_password.clone(),
@@ -75,6 +74,8 @@ async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpR
         Ok(None) => (),
         Err(_) => return http_error(500, String::from("Internal server error"))
     };
+
+    user.stripe = Some(user.create_stripe_data().await);
 
     let collection: Collection<User> = client.database("cosphere").collection("users");
     match collection.insert_one(&user).await {

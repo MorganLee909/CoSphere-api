@@ -50,7 +50,7 @@ async fn retrieve(
         let auth_header = req.headers().get("Authorization");
         match user_authorized(client, id, auth_header).await {
             Ok(u) => HttpResponse::Ok().json(u.response_user()),
-            Err(e) => http_error(500, e.to_string())
+            Err(e) => http_error(e.0, String::from(e.1))
         }
 }
 
@@ -73,13 +73,13 @@ async fn update(
         let auth_header = req.headers().get("Authorization");
         let user = match user_authorized(client, id, auth_header).await {
             Ok(u) => u,
-            Err(e) => return http_error(500, e.to_string())
+            Err(e) => return http_error(e.0, String::from(e.1))
         };
 
         let data = vec![
             (String::from("location"), &body.location),
             (String::from("first_name"), &body.first_name),
-            (String::from("last_name"), &body.last_name),
+            (String::from("last_name"), &body.last_name)
         ];
 
         let document = User::create_update_doc(data);
@@ -138,23 +138,23 @@ async fn user_authorized(
         client: actix_web::web::Data<Client>,
         user_id: String,
         auth_header: Option<&HeaderValue>
-    ) -> Result<User, Box<dyn std::error::Error>> {
+    ) -> Result<User, (i16, &str)> {
     let user_collection: Collection<User> = client.database("cosphere").collection("users");
 
     let id = ObjectId::parse_str(user_id).unwrap();
     let user = match user_collection.find_one(doc! { "_id": id }).await {
         Ok(Some(u)) => u,
-        Ok(None) => return Err(Box::from("User with this ID deosn't exist")),
-        Err(_) => return Err(Box::from("Internal server error"))
+        Ok(None) => return Err((404, "User with this ID doesn't exist")),
+        Err(_) => return Err((500, "Internal server error"))
     };
 
     let token = match auth_header {
         Some(h) => String::from(h.to_str().unwrap()),
-        None => return Err(Box::from("Unauthorized"))
+        None => return Err((401, "Unauthorized"))
     };
 
     match user.authorized(&token) {
         true => Ok(user),
-        false => Err(Box::from("Unauthorized"))
+        false => Err((401, "Unauthorized"))
     }
 }

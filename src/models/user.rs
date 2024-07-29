@@ -6,12 +6,12 @@ use argon2::{Argon2, PasswordHasher, PasswordHash, PasswordVerifier,
     password_hash::{rand_core::OsRng, SaltString}
 };
 use jsonwebtoken::{encode, decode, Header, EncodingKey, DecodingKey, Validation, Algorithm};
-use bson::oid::ObjectId;
+use bson::{Document, oid::ObjectId, doc};
 use std::collections::HashMap;
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
-    _id: ObjectId,
+    pub _id: ObjectId,
     pub email: String,
     password: String,
     first_name: String,
@@ -22,7 +22,7 @@ pub struct User {
     pub stripe: Option<StripeData>,
     reset_code: Option<String>,
     avatar: Option<String>,
-    default_location: String,
+    pub default_location: String,
     session_id: String
 }
 
@@ -185,6 +185,24 @@ impl User {
         }
 
         true
+    }
+
+    pub fn create_update_doc(data: Vec<(String, &Option<String>)>) -> Document {
+        let mut document = Document::new();
+        let mut sub_document = Document::new();
+
+        for fields in data {
+            match fields.1 {
+                Some(s) => {
+                    sub_document.insert(fields.0, s);
+                    ()
+                },
+                None => ()
+            };
+        }
+
+        document.insert("$set", sub_document);
+        document
     }
 }
 

@@ -39,7 +39,7 @@ pub struct ResponseUser{
 }
 
 impl User {
-    pub async fn new(
+    pub fn new(
         email: String,
         password: String,
         confirm_password: String,
@@ -75,7 +75,6 @@ impl User {
         }
 
         user.password = user.hashed_password();
-        //user.stripe = Some(user.create_stripe_data().await);
 
         Ok(user)
     }
@@ -167,16 +166,18 @@ impl User {
         }
     }
 
-    pub fn authorized(&self, token: &str) -> bool {
+    pub fn authorized(&self, auth_header: &str) -> bool {
+        let parts = auth_header.split(" ").collect::<Vec<&str>>();
+
         let response = decode::<TokenClaims>(
-            token,
+            parts[1],
             &DecodingKey::from_secret("secret".as_ref()),
             &Validation::new(Algorithm::HS256)
         );
 
         let token_data = match response {
             Ok(d) => d,
-            Err(e) => return false
+            Err(_) => return false
         };
 
         if token_data.claims.email != self.email || token_data.claims.id != self._id.to_string() {

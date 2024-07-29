@@ -34,14 +34,13 @@ async fn retrieve(
         Err(_) => return http_error(500, String::from("Internal server error"))
     };
 
-    let headers = match req.headers().get("Authorization") {
+    let auth_header = match req.headers().get("Authorization") {
         Some(h) => h.to_str().unwrap(),
         None => return http_error(401, String::from("Unauthorized"))
     };
-    let parts = headers.split(" ").collect::<Vec<&str>>();
 
-    match user.authorized(parts[1]) {
-        true => HttpResponse::Ok().json(user),
+    match user.authorized(auth_header) {
+        true => HttpResponse::Ok().json(user.response_user()),
         false => http_error(401, String::from("Unauthorized"))
     }
 }
@@ -64,7 +63,7 @@ async fn create(client: web::Data<Client>, body: web::Json<CreateBody>) -> HttpR
         body.confirm_password.clone(),
         body.first_name.clone(),
         body.last_name.clone(),
-    ).await{
+    ){
         Ok(user) => user,
         Err(err) => return http_error(err.0, err.1)
     };

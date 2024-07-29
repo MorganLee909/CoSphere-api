@@ -1,6 +1,6 @@
 use crate::models::{user::User};
 use crate::errors::http_error;
-use actix_web::{web, HttpResponse, HttpRequest};
+use actix_web::{web, http::header::HeaderValue, HttpResponse, HttpRequest};
 use mongodb::{bson::doc, Client, Collection};
 use serde::Deserialize;
 use bson::oid::ObjectId;
@@ -13,6 +13,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::resource("/user/{user_id}")
             .route(web::get().to(retrieve))
+            .route(web::put().to(update))
     );
     cfg.service(
         web::resource("/user")
@@ -25,24 +26,45 @@ async fn retrieve(
         user_id: web::Path<String>,
         req: HttpRequest
     ) -> HttpResponse {
+        let id = user_id.to_string();
+        let auth_header = req.headers().get("Authorization");
+        match user_authorized(client, id, auth_header).await {
+            Ok(u) => HttpResponse::Ok().json(u.response_user()),
+            Err(e) => http_error(500, e.to_string())
+        }
+}
+
+async fn user_authorized(
+        client: actix_web::web::Data<Client>,
+        user_id: String,
+        auth_header: Option<&HeaderValue>
+    ) -> Result<User, Box<dyn std::error::Error>> {
     let user_collection: Collection<User> = client.database("cosphere").collection("users");
 
-    let id = ObjectId::parse_str(user_id.to_string()).unwrap();
+    let id = ObjectId::parse_str(user_id).unwrap();
     let user = match user_collection.find_one(doc! { "_id": id }).await {
         Ok(Some(u)) => u,
-        Ok(None) => return http_error(404, String::from("User with this ID doesn't exist")),
-        Err(_) => return http_error(500, String::from("Internal server error"))
+        Ok(None) => return Err(Box::from("User with this ID deosn't exist")),
+        Err(_) => return Err(Box::from("Internal server error"))
     };
 
-    let auth_header = match req.headers().get("Authorization") {
-        Some(h) => h.to_str().unwrap(),
-        None => return http_error(401, String::from("Unauthorized"))
+    let token = match auth_header {
+        Some(h) => String::from(h.to_str().unwrap()),
+        None => return Err(Box::from("Unauthorized"))
     };
 
-    match user.authorized(auth_header) {
-        true => HttpResponse::Ok().json(user.response_user()),
-        false => http_error(401, String::from("Unauthorized"))
+    match user.authorized(&token) {
+        true => Ok(user),
+        false => Err(Box::from("Unauthorized"))
     }
+}
+
+async fn update(
+        client: web::Data<Client>,
+        user_id: web::Path<String>,
+        req: HttpRequest
+    ) -> HttpResponse {
+    http_error(500, String::from("Internal server error"))
 }
 
 #[derive(Deserialize)]

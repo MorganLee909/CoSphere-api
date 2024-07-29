@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+actix-multipart = "0.7.2"
 actix-web = "4.8.0"
 argon2 = { version = "0.5.3", features = ["password-hash"] }
 bson = "2.11.0"

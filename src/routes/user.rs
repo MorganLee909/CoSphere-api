@@ -1,6 +1,7 @@
 use crate::models::{user::User};
 use crate::errors::http_error;
 use actix_web::{web, http::header::HeaderValue, HttpResponse, HttpRequest};
+use actix_multipart::form::{json::Json as MpJson, tempfile::TempFile, MultipartForm};
 use mongodb::{bson::doc, Client, Collection};
 use serde::Deserialize;
 use bson::oid::ObjectId;
@@ -16,13 +17,16 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .route(web::put().to(update))
     );
     cfg.service(
+        web::resource("/user/{user_id}/avatar")
+            .route(web::post().to(update_avatar))
+    );
+    cfg.service(
         web::resource("/user")
             .route(web::post().to(create))
     );
 }
 
 async fn login(client: web::Data<Client>, body: web::Json<LoginBody>) -> HttpResponse {
-
     let user_collection: Collection<User> = client.database("cosphere").collection("users");
 
     let user = match user_collection.find_one(doc! { "email": &body.email }).await {
@@ -88,6 +92,23 @@ async fn update(
             Ok(u) => HttpResponse::Ok().json(u),
             Err(e) => http_error(500, e.to_string())
         }
+}
+
+#[derive(Debug, MultipartForm)]
+struct AvatarFile {
+    #[multipart(limit = "15MB")]
+    file: TempFile,
+}
+
+async fn update_avatar(
+        client: web::Data<Client>,
+        user_id: web::Path<String>,
+        upload: MultipartForm<AvatarFile>
+        //MultipartForm(file): MultipartForm<AvatarFile>
+    ) -> HttpResponse {
+        println!("{}", upload.file.file_name.as_ref().unwrap());
+
+        http_error(500, String::from("something"))
 }
 
 #[derive(Deserialize)]

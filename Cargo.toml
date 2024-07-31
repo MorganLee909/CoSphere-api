@@ -11,6 +11,7 @@ actix-web = "4.8.0"
 argon2 = { version = "0.5.3", features = ["password-hash"] }
 bson = "2.11.0"
 chrono = { version = "0.4.38", features = ["serde"] }
+image = "0.25.2"
 jsonwebtoken = "9.3.0"
 mongodb = "3.0.1"
 regex = "1.10.5"

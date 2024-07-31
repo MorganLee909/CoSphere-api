@@ -8,6 +8,7 @@ use argon2::{Argon2, PasswordHasher, PasswordHash, PasswordVerifier,
 use jsonwebtoken::{encode, decode, Header, EncodingKey, DecodingKey, Validation, Algorithm};
 use bson::{Document, oid::ObjectId, doc};
 use std::collections::HashMap;
+use image::{imageops::FilterType, ImageReader};
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
@@ -21,7 +22,7 @@ pub struct User {
     created_date: DateTime<Utc>,
     pub stripe: Option<StripeData>,
     reset_code: Option<String>,
-    avatar: Option<String>,
+    pub avatar: Option<String>,
     pub default_location: String,
     session_id: String
 }
@@ -203,6 +204,22 @@ impl User {
 
         document.insert("$set", sub_document);
         document
+    }
+
+    pub fn create_avatar(image: &std::path::Path) -> Result<ObjectId, (i16, String)> {
+        let img = ImageReader::open(image)
+            .unwrap()
+            .with_guessed_format()
+            .unwrap()
+            .decode()
+            .unwrap()
+            .resize(500, 500, FilterType::Nearest);
+
+        let img_id = ObjectId::new();
+        match img.save(format!("./avatars/{}.webp", img_id)) {
+            Ok(_) => Ok(img_id),
+            Err(_) => Err((500, String::from("Unable to save file")))
+        }
     }
 }
 

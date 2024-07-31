@@ -1,7 +1,7 @@
 use crate::models::{user::User};
 use crate::errors::http_error;
 use actix_web::{web, http::header::HeaderValue, HttpResponse, HttpRequest};
-use actix_multipart::form::{json::Json as MpJson, tempfile::TempFile, MultipartForm};
+use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use mongodb::{bson::doc, Client, Collection};
 use serde::Deserialize;
 use bson::oid::ObjectId;
@@ -18,7 +18,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
     );
     cfg.service(
         web::resource("/user/{user_id}/avatar")
-            .route(web::post().to(update_avatar))
+            .route(web::put().to(update_avatar))
     );
     cfg.service(
         web::resource("/user")
@@ -103,12 +103,30 @@ struct AvatarFile {
 async fn update_avatar(
         client: web::Data<Client>,
         user_id: web::Path<String>,
-        upload: MultipartForm<AvatarFile>
-        //MultipartForm(file): MultipartForm<AvatarFile>
+        upload: MultipartForm<AvatarFile>,
+        req: HttpRequest
     ) -> HttpResponse {
-        println!("{}", upload.file.file_name.as_ref().unwrap());
+        let user_collection: Collection<User> = client.database("cosphere").collection("users");
 
-        http_error(500, String::from("something"))
+        let id = user_id.to_string();
+        let auth_header = req.headers().get("Authorization");
+        let user = match user_authorized(client, id, auth_header).await {
+            Ok(u) => u,
+            Err(e) => return http_error(e.0, String::from(e.1))
+        };
+
+        let img_id = match User::create_avatar(upload.file.file.path()) {
+            Ok(id) => id,
+            Err(e) => return http_error(e.0, e.1)
+        };
+
+        let string_id = Some(img_id.to_string());
+        let data = vec![(String::from("avatar"), &string_id)];
+        let update_doc = User::create_update_doc(data);
+        match user_collection.update_one(doc! { "_id": user._id}, update_doc).await {
+            Ok(u) => HttpResponse::Ok().json(u),
+            Err(_) => http_error(500, String::from("Unable to update user"))
+        }
 }
 
 #[derive(Deserialize)]
